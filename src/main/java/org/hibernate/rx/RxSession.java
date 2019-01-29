@@ -14,7 +14,7 @@ public interface RxSession {
 
 	CompletableFuture<Void> persist(Object entity);
 
-	CompletableFuture<Void> remove(Object entity);
+	void remove(Object entity);
 
 	<R> RxQuery<R> createQuery(Class<R> resultType, String jpql);
 
