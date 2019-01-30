@@ -1,8 +1,9 @@
 package org.hibernate.rx;
 
-import java.util.concurrent.CompletableFuture;
+import java.util.Optional;
+import java.util.concurrent.CompletionStage;
 
-import io.reactivex.Maybe;
+import io.reactivex.Single;
 
 /**
  * Right now we are playing around, but this is going to be the core
@@ -10,9 +11,9 @@ import io.reactivex.Maybe;
  */
 public interface RxSession {
 
-	<T> Maybe<T> find(Class<T> entityClass, Object id);
+	<T> Single<Optional<T>> find(Class<T> entityClass, Object id);
 
-	CompletableFuture<Void> persist(Object entity);
+	CompletionStage<Void> persist(Object entity);
 
 	void remove(Object entity);
 

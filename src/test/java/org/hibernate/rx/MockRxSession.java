@@ -1,9 +1,14 @@
 package org.hibernate.rx;
 
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
+
+import io.reactivex.Maybe;
+import io.reactivex.Single;
 
 /**
  * Depending of what we want to test, this session can be configured using the {@link Builder} to
@@ -47,19 +52,19 @@ public class MockRxSession implements RxSession {
 		}
 
 		@Override
-		public <T> CompletableFuture<T> load(Class<T> entityClass, final Object id) {
+		public <T> Single<Optional<T>> find(Class<T> entityClass, final Object id) {
 			Supplier<T> supplier = () -> (T) loadFunction.apply( entityClass, id );
 			return CompletableFuture.supplyAsync( supplier );
 		}
 
 		@Override
-		public CompletableFuture<Void> persist(Object entity) {
+		public CompletionStage<Void> persist(Object entity) {
 			return CompletableFuture.runAsync( () -> persistFunction.accept( entity ) );
 		}
 
 		@Override
-		public CompletableFuture<Void> remove(Object entity) {
-			return CompletableFuture.runAsync( () -> removeFunction.accept( entity ) );
+		public void remove(Object entity) {
+			removeFunction.accept( entity );
 		}
 
 	@Override
