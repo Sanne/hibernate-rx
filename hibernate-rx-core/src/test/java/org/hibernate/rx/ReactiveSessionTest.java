@@ -110,11 +110,14 @@ public class ReactiveSessionTest extends SessionFactoryBasedFunctionalTest {
 		final GuineaPig mibbles = new GuineaPig( 22, "Mibbles" );
 
 		RxSession rxSession = session.getRxSession();
+		// TODO: Tx should be simpler, not EntityTransaction. Allow only setRollback
 		rxSession.inTransaction( (rx, tx) -> {
 			rx.persist( mibbles )
 					.whenComplete( (nope, errPersist) -> {
 						try {
 							assertThat( nope ).isNull();
+							assertThat( errPersist ).isNull();
+
 							rx.find( GuineaPig.class, 22 )
 									.whenComplete( (pig, errFind) -> {
 										try {
