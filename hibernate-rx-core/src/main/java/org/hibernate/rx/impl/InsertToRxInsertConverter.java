@@ -39,7 +39,6 @@ public class InsertToRxInsertConverter extends AbstractSqlAstToJdbcOperationConv
 			@Override
 			public int bindParameterValue(
 					PgPreparedQuery statement, int startPosition, ExecutionContext executionContext) {
-					parameter
 				return 1;
 			}
 		};

@@ -180,7 +180,7 @@ public class RxSingleTableEntityTypeDescriptor<T> extends SingleTableEntityTypeD
 				}
 		);
 
-		executeInsert( executionContext, insertStatement );
+//		executeInsert( executionContext, insertStatement );
 	}
 
 	private void executeJoinTableInsert(

@@ -48,7 +48,7 @@ public class ServiceRegistryBootstrap {
 
     private final static List<ProvidedService> providedServices = new ArrayList<ProvidedService>();
 
-    private BootstrapServiceRegistry buildBootstrapServiceRegistry() {
+    private static BootstrapServiceRegistry buildBootstrapServiceRegistry() {
 
         final BootstrapServiceRegistryBuilder bsrBuilder = new BootstrapServiceRegistryBuilder();
         final ClassLoaderService providedClassLoaderService = FlatClassLoaderService.INSTANCE;

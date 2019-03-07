@@ -1,5 +1,6 @@
 package org.hibernate.rx.impl;
 
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
 import org.hibernate.rx.service.RxConnection;
@@ -11,6 +12,7 @@ import org.hibernate.sql.exec.spi.ExecutionContext;
 import io.reactiverse.pgclient.PgConnection;
 import io.reactiverse.pgclient.PgPool;
 import io.reactiverse.pgclient.PgPreparedQuery;
+import io.reactiverse.pgclient.PgRowSet;
 
 public class RxMutationExecutor {
 
@@ -21,32 +23,36 @@ public class RxMutationExecutor {
 				.getService( RxConnectionPoolProvider.class );
 
 		RxConnection connection = poolProvider.getConnection();
-		connection.unwrap( PgPool.class ).getConnection( ar1 -> {
-			PgConnection pgConnection = ar1.result();
-			pgConnection.prepare( operation.getSql(), (ar2) -> {
+		
+		CompletableFuture c = new CompletableFuture<Object>();
 
-				if (ar2.succeeded() ) {
-					PgPreparedQuery preparedQuery = ar2.result();
-					int paramBindingPosition = 1;
-					for ( RxParameterBinder parameterBinder : operation.getParameterBinders() ) {
-						paramBindingPosition += parameterBinder.bindParameterValue(
+		return CompletableFuture.runAsync( () -> {
+			connection.unwrap(PgPool.class).getConnection(ar1 -> {
+				PgConnection pgConnection = ar1.result();
+				pgConnection.prepare(operation.getSql(), (ar2) -> {
+					if (ar2.succeeded()) {
+						PgPreparedQuery preparedQuery = ar2.result();
+						int paramBindingPosition = 1;
+						for (RxParameterBinder parameterBinder : operation.getParameterBinders()) {
+							paramBindingPosition += parameterBinder.bindParameterValue(
 								preparedQuery,
 								paramBindingPosition,
 								executionContext
-						);
+							);
+						}
+						preparedQuery.execute((queryResult) -> {
+							final PgRowSet result = queryResult.result();
+
+							pgConnection.close();
+						});
 					}
-					preparedQuery.execute( (queryResult) -> {
-						System.out.println( queryResult.result() );
-						pgConnection.close();
-					} );
-				}
 
-				//				int rows = ps.executeUpdate();
+					//				int rows = ps.executeUpdate();
 //				expectationCkeck.accept( rows, preparedStatement );
-			} );
+				});
 
 
-		} );
-		return null;
+			});
+		});
 	}
 }
