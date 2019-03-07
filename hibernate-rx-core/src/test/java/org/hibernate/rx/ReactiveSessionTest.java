@@ -32,6 +32,7 @@ public class ReactiveSessionTest extends SessionFactoryBasedFunctionalTest {
 
 	@BeforeEach
 	public void setupSession() {
+		// TODO: When ready, create this using ServiceRegistryBootstrap
 		session = getSessionFactoryProducer()
 				.produceSessionFactory()
 				.unwrap( RxHibernateSessionFactory.class )
