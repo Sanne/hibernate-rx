@@ -9,6 +9,8 @@ dependencies {
 	compile project( ':hibernate-rx-api' )
 
 	compile 'org.hibernate.orm:hibernate-core:6.0.0.Alpha1'
+	testCompile 'org.hibernate.orm:hibernate-testing:6.0.0.Alpha1'
+
     compile 'io.reactiverse:reactive-pg-client:0.11.3-SNAPSHOT'
 
 	runtimeOnly 'javax.persistence:javax.persistence-api:2.2'

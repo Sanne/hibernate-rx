@@ -34,7 +34,6 @@ public class RxHibernateSessionFactoryImpl extends SessionFactoryDelegatingImpl 
 	public RxHibernateSessionFactoryImpl(SessionFactoryImplementor delegate) {
 		super( delegate );
 		uuid = delegate.getUuid();
-
 		SessionFactoryRegistry.INSTANCE.addSessionFactory(
 				delegate.getUuid(),
 				delegate.getName(),

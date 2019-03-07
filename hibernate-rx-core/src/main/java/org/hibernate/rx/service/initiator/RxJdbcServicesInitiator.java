@@ -1,4 +1,4 @@
-package org.hibernate.rx.service;
+package org.hibernate.rx.service.initiator;
 
 import java.util.Map;
 

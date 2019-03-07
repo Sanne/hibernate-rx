@@ -19,9 +19,6 @@ import org.hibernate.service.spi.SessionFactoryServiceRegistryFactory;
 
 /**
  * Factory for the creation of OGM's {@link SessionFactoryServiceRegistry}.
- *
- * @author Davide D'Alto &lt;davide@hibernate.org&gt;
- * @author Guillaume Smet
  */
 public class RxSessionFactoryServiceRegistryFactoryImpl implements SessionFactoryServiceRegistryFactory {
 

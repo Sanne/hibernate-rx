@@ -3,9 +3,8 @@ package org.hibernate.rx.boot.impl;
 import java.util.Map;
 
 import org.hibernate.boot.registry.StandardServiceRegistryBuilder;
-import org.hibernate.rx.jdbc.impl.RxConnectionProviderInitiator;
-import org.hibernate.rx.service.RxJdbcServicesInitiator;
-import org.hibernate.rx.service.RxSessionFactoryServiceRegistryFactoryInitiator;
+import org.hibernate.rx.service.initiator.RxConnectionProviderInitiator;
+import org.hibernate.rx.service.initiator.RxSessionFactoryServiceRegistryFactoryInitiator;
 import org.hibernate.service.spi.ServiceContributor;
 
 public class RxServiceRegistryInitializer implements ServiceContributor {
@@ -14,7 +13,7 @@ public class RxServiceRegistryInitializer implements ServiceContributor {
 	public void contribute(StandardServiceRegistryBuilder serviceRegistryBuilder) {
 		Map<Object, Object> settings = serviceRegistryBuilder.getSettings();
 
-		serviceRegistryBuilder.addInitiator( RxJdbcServicesInitiator.INSTANCE );
+//		serviceRegistryBuilder.addInitiator( RxJdbcServicesInitiator.INSTANCE );
 		serviceRegistryBuilder.addInitiator( RxSessionFactoryServiceRegistryFactoryInitiator.INSTANCE );
 		serviceRegistryBuilder.addInitiator( RxConnectionProviderInitiator.INSTANCE );
 

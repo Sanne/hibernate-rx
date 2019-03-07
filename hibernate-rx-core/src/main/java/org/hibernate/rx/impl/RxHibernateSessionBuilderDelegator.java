@@ -8,14 +8,15 @@ import org.hibernate.rx.RxHibernateSession;
 import org.hibernate.rx.RxSession;
 import org.hibernate.rx.RxHibernateSessionFactory;
 import org.hibernate.rx.engine.spi.RxHibernateSessionBuilderImplementor;
+import org.hibernate.rx.engine.spi.RxHibernateSessionFactoryImplementor;
 
 public class RxHibernateSessionBuilderDelegator extends AbstractDelegatingSessionBuilderImplementor<RxHibernateSessionBuilderImplementor>
 		implements RxHibernateSessionBuilderImplementor {
 
 	private final SessionBuilderImplementor builder;
-	private final RxHibernateSessionFactory factory;
+	private final RxHibernateSessionFactoryImplementor factory;
 
-	public RxHibernateSessionBuilderDelegator(SessionBuilderImplementor sessionBuilder, RxHibernateSessionFactory factory) {
+	public RxHibernateSessionBuilderDelegator(SessionBuilderImplementor sessionBuilder, RxHibernateSessionFactoryImplementor factory) {
 		super( sessionBuilder );
 
 		this.builder = sessionBuilder;

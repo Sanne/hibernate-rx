@@ -3,9 +3,11 @@ package org.hibernate.rx;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
+import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
+import javax.persistence.EntityTransaction;
 
 /**
  * Depending of what we want to test, this session can be configured using the {@link Builder} to
@@ -47,6 +49,11 @@ public class MockRxSession implements RxSession {
 				return session;
 			}
 		}
+
+	@Override
+	public CompletionStage<Void> inTransaction(BiConsumer<RxSession, EntityTransaction> consumer) {
+		return null;
+	}
 
 	@Override
 	public <T> CompletionStage<Optional<T>> find(Class<T> entityClass, final Object id) {
