@@ -19,10 +19,12 @@ public class RxMutationExecutor {
 				.getSessionFactory()
 				.getServiceRegistry()
 				.getService( RxConnectionPoolProvider.class );
+
 		RxConnection connection = poolProvider.getConnection();
 		connection.unwrap( PgPool.class ).getConnection( ar1 -> {
 			PgConnection pgConnection = ar1.result();
 			pgConnection.prepare( operation.getSql(), (ar2) -> {
+
 				if (ar2.succeeded() ) {
 					PgPreparedQuery preparedQuery = ar2.result();
 					int paramBindingPosition = 1;
@@ -38,7 +40,8 @@ public class RxMutationExecutor {
 						pgConnection.close();
 					} );
 				}
-//				int rows = ps.executeUpdate();
+
+				//				int rows = ps.executeUpdate();
 //				expectationCkeck.accept( rows, preparedStatement );
 			} );
 
