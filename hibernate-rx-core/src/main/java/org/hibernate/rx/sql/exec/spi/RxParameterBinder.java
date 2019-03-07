@@ -22,6 +22,7 @@ import io.reactiverse.pgclient.PgPreparedQuery;
  */
 public interface RxParameterBinder {
 
+	// TODO: Replace PgPrepareQuery with a more general interface (Similar to PreparedStatements)
 	int bindParameterValue(
 			PgPreparedQuery statement,
 			int startPosition,
