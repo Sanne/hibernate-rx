@@ -377,6 +377,11 @@ public class MutinySessionImpl implements Mutiny.Session {
 		return new Transaction<T>().execute( work );
 	}
 
+	@Override
+	public <T> T unwrap(Class<T> eventSourceClass) {
+		return delegate.unwrap( eventSourceClass );
+	}
+
 	private class Transaction<T> implements Mutiny.Transaction {
 		boolean rollback;
 

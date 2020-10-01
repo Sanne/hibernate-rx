@@ -376,6 +376,11 @@ public class StageSessionImpl implements Stage.Session {
 	}
 
 	@Override
+	public <T> T unwrap(Class<T> eventSourceClass) {
+		return delegate.unwrap( eventSourceClass );
+	}
+
+	@Override
 	public <T> CompletionStage<T> withTransaction(Function<Stage.Transaction, CompletionStage<T>> work) {
 		return new Transaction<T>().execute( work );
 	}

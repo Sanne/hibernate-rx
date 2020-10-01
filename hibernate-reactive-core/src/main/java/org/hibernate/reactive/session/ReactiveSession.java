@@ -159,4 +159,6 @@ public interface ReactiveSession extends ReactiveQueryExecutor {
 	boolean isDirty();
 	boolean isOpen();
 	void close();
+
+	<T> T unwrap(Class<T> type);
 }

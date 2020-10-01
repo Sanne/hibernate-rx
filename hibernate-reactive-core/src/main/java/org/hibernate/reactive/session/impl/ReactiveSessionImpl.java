@@ -80,6 +80,7 @@ import org.hibernate.reactive.pool.BatchingConnection;
 import org.hibernate.reactive.pool.ReactiveConnection;
 import org.hibernate.reactive.session.Criteria;
 import org.hibernate.reactive.session.CriteriaQueryOptions;
+import org.hibernate.reactive.session.ReactiveConnectionSupplier;
 import org.hibernate.reactive.session.ReactiveNativeQuery;
 import org.hibernate.reactive.session.ReactiveQuery;
 import org.hibernate.reactive.session.ReactiveSession;
@@ -1301,6 +1302,9 @@ public class ReactiveSessionImpl extends SessionImpl implements ReactiveSession,
 	@Override
 	public <T> T unwrap(Class<T> clazz) {
 		if ( ReactiveSession.class.isAssignableFrom( clazz ) ) {
+			return clazz.cast(this);
+		}
+		if ( ReactiveConnectionSupplier.class.isAssignableFrom( clazz ) ) {
 			return clazz.cast(this);
 		}
 		if ( Stage.Session.class.isAssignableFrom( clazz ) ) {

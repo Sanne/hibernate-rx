@@ -978,6 +978,8 @@ public interface Stage {
 		 * @return false if {@link #close()} has been called
 		 */
 		boolean isOpen();
+
+		<T> T unwrap(Class<T> eventSourceClass);
 	}
 
 	/**
