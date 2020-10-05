@@ -72,17 +72,20 @@ public class SequenceIdGenerationTest extends BaseReactiveTest {
 
 				  // Sort them
 				  Arrays.sort( allGeneratedValues );
-				  System.out.println("-------- Sorted id generated:");
-				  Arrays.stream( allGeneratedValues )
-						  .forEach( System.out::println );
+//				  System.out.println("-------- Sorted id generated:");
+//				  Arrays.stream( allGeneratedValues )
+//						  .forEach( System.out::println );
 
-				  // Check the expected values have been generated
-				  int expectedValue = INITIAL_VALUE;
-				  for ( int k = 0; k < allGeneratedValues.length; k++ ) {
-					  assertThat( allGeneratedValues[k] )
+				  // Check that the first value matches the initial value;
+				  // this is also important to implicitly check we produced the number of expected identifiers,
+				  // by excluding any zero.
+				  assertThat( allGeneratedValues[0] ).isEqualTo( INITIAL_VALUE );
+
+				  // Check the expected values have been generated are all unique
+				  for ( int k = 0; k < (allGeneratedValues.length -1) ; k++ ) {
+				  	assertThat( allGeneratedValues[k] )
 							  .as( "index: " + k )
-							  .isEqualTo( expectedValue );
-					  expectedValue += 1;
+							  .isLessThan( allGeneratedValues[k+1] );
 				  }
 			  } )
 		);
@@ -179,7 +182,6 @@ public class SequenceIdGenerationTest extends BaseReactiveTest {
 			System.out.println( "Finished running task of threadId: " + threadId + "thread name: " + Thread.currentThread().getName() + " content: " + Arrays.toString( generatedValues ) );
 			this.generatedValuesPublished = generatedValues;
 			endGate.countDown();
-			System.out.println( "Count on gate: " + endGate.getCount() );
 		}
 
 		public synchronized long[] retrieveAllGeneratedValues() {

@@ -40,6 +40,7 @@ public class SequenceReactiveIdentifierGenerator
 
 	private int loValue;
 	private long hiValue;
+	private CompletionStage<Long> queryInProcess;
 
 	private synchronized long next() {
 		long returned = loValue>0 && loValue<increment
@@ -71,13 +72,25 @@ public class SequenceReactiveIdentifierGenerator
 
 	@Override
 	public CompletionStage<Long> generate(ReactiveConnectionSupplier session, Object entity) {
-		long local = next();
-		if ( local > 0 ) {
-			return completedFuture( local );
+		final CompletionStage<Long> runningQueryInProcess = this.queryInProcess;
+		if ( runningQueryInProcess == null ) {
+			long local = next();
+			if ( local > 0 ) {
+				return completedFuture( local );
+			}
+			else {
+				CompletionStage<Long> newQuery = session.getReactiveConnection()
+						.selectLong( sql, NO_PARAMS )
+						.thenApply( this::next )
+						.thenApply( (id) -> { this.queryInProcess = null; return id;} );
+				this.queryInProcess = newQuery;
+				return queryInProcess;
+			}
 		}
-		return session.getReactiveConnection()
-				.selectLong( sql, NO_PARAMS )
-				.thenApply( this::next );
+		else {
+			System.out.println("Looping");
+			return runningQueryInProcess.thenCompose( (ignore) -> this.generate(session, entity) );
+		}
 	}
 
 	protected int determineIncrementForSequenceEmulation(Properties params) {
