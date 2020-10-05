@@ -54,10 +54,10 @@ public class SequenceIdGenerationTest extends BaseReactiveTest {
 				  return completedFuture( runJobs );
 			  } ).thenAccept( runJobs -> {
 				  // Collect all the generated ids
-				  final int[] allGeneratedValues = new int[ID_GENERATED_PER_TASK * NUMBER_OF_TASKS];
+				  final long[] allGeneratedValues = new long[ID_GENERATED_PER_TASK * NUMBER_OF_TASKS];
 				  int index = 0;
 				  for ( IdGenerationTask job : runJobs ) {
-					  int[] generatedValues = job.retrieveAllGeneratedValues();
+					  long[] generatedValues = job.retrieveAllGeneratedValues();
 					  for ( int i = 0; i < generatedValues.length; i++ ) {
 						  allGeneratedValues[index++] = generatedValues[i];
 					  }
@@ -91,25 +91,27 @@ public class SequenceIdGenerationTest extends BaseReactiveTest {
 
 		// Prepare all jobs (quite a lot of array allocations):
 		for ( int i = 0; i < NUMBER_OF_TASKS; i++ ) {
-			runJobs[i] = new IdGenerationTask( supplier, identifierGenerator, entity );
+			runJobs[i] = new IdGenerationTask( supplier, identifierGenerator );
 		}
+
+		final java.util.concurrent.ExecutorService executorService = java.util.concurrent.Executors.newFixedThreadPool(
+				NUMBER_OF_TASKS );
 
 		// Start them, pretty much in parallel (not really, but we have a lot so they will eventually run in parallel):
 		for ( int i = 0; i < NUMBER_OF_TASKS; i ++ ) {
-			new Thread( runJobs[i] ).start();
+			executorService.submit( runJobs[i] );
 		}
 
-		await();
-		return runJobs;
-	}
-
-	private void await() {
 		try {
+			//TODO setup a timeout
 			endGate.await();
+			executorService.awaitTermination( 10, java.util.concurrent.TimeUnit.MINUTES );
 		}
 		catch (InterruptedException e) {
-			throw new RuntimeException( e );
+			throw new IllegalStateException("Timed out!");
 		}
+		executorService.shutdownNow();
+		return runJobs;
 	}
 
 	private static <T> ReactiveIdentifierGenerator<Long> identifierGenerator(Stage.Session session, Class<T> entityClass, T entity) {
@@ -138,19 +140,16 @@ public class SequenceIdGenerationTest extends BaseReactiveTest {
 	 */
 	class IdGenerationTask implements Runnable {
 
-		//GuardedBy synchronization on IncrementJob.this :
-		private final int[] generatedValues = new int[ID_GENERATED_PER_TASK];
+		private final long[] generatedValues = new long[ID_GENERATED_PER_TASK];
+		private volatile long[] generatedValuesPublished;
 		private final ReactiveConnectionSupplier supplier;
 		private final ReactiveIdentifierGenerator<Long> identifierGenerator;
-		private final Object entity;
 
 		private IdGenerationTask(
 				ReactiveConnectionSupplier supplier,
-				ReactiveIdentifierGenerator<Long> identifierGenerator,
-				Object entity) {
+				ReactiveIdentifierGenerator<Long> identifierGenerator) {
 			this.supplier = supplier;
 			this.identifierGenerator = identifierGenerator;
-			this.entity = entity;
 		}
 
 		@Override
@@ -159,20 +158,26 @@ public class SequenceIdGenerationTest extends BaseReactiveTest {
 			// Generate several ids
 			loop( 0, ID_GENERATED_PER_TASK
 						  , index -> identifierGenerator
-								  .generate( supplier, entity )
+								  .generate( supplier, null )
 								  .thenAccept( id -> {
-									  record( threadId, index, id );
-								  } ) );
+									  recordSingleResult( index, id, threadId );
+								  } ) )
+					.thenRun( () -> recordFinalOutput( threadId ) );
 		}
 
-		private synchronized void record(long threadId, Integer index, Long id) {
-			System.out.println( threadId + " record[" + index + "]: " + id );
-			generatedValues[index] = id.intValue();
+		private void recordSingleResult(int index, long id, long threadId) {
+			System.out.println( "Running on thread " + Thread.currentThread().getName() + " thread id: " + threadId );
+			generatedValues[index] = id;
+		}
+
+		private synchronized void recordFinalOutput(long threadId) {
+			System.out.println( "Finished running task of threadId: " + threadId + " content: " + Arrays.toString( generatedValues ) );
+			this.generatedValuesPublished = generatedValues;
 			endGate.countDown();
 		}
 
-		public int[] retrieveAllGeneratedValues() {
-			return generatedValues;
+		public synchronized long[] retrieveAllGeneratedValues() {
+			return generatedValuesPublished;
 		}
 	}
 
