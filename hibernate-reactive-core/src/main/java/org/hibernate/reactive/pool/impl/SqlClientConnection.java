@@ -26,6 +26,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CompletionStage;
 
+import static org.hibernate.internal.CoreLogging.messageLogger;
 import static org.hibernate.reactive.util.impl.CompletionStages.voidFuture;
 
 /**
@@ -82,6 +83,7 @@ public class SqlClientConnection implements ReactiveConnection {
 		return preparedQuery( sql, Tuple.wrap( paramValues ) )
 				.thenApply( rowSet -> {
 					for (Row row: rowSet) {
+						messageLogger( SqlClientConnection.class).infof( "HRX0000XX: retrieved Long result" );
 						return row.getLong(0);
 					}
 					return null;

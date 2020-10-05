@@ -46,6 +46,13 @@ public class SequenceIdGenerationTest extends BaseReactiveTest {
 	private static final int ALLOCATION_SIZE = 10;
 
 	private final CountDownLatch endGate = new CountDownLatch( NUMBER_OF_TASKS );
+	private final java.util.concurrent.ExecutorService executorService = java.util.concurrent.Executors.newFixedThreadPool(
+			NUMBER_OF_TASKS );
+
+	@org.junit.After
+	public void stopThreadPool() {
+		executorService.shutdown();
+	}
 
 	@Test
 	public void testThreadSafetyIdGeneration(TestContext context) {
@@ -94,8 +101,6 @@ public class SequenceIdGenerationTest extends BaseReactiveTest {
 			runJobs[i] = new IdGenerationTask( supplier, identifierGenerator );
 		}
 
-		final java.util.concurrent.ExecutorService executorService = java.util.concurrent.Executors.newFixedThreadPool(
-				NUMBER_OF_TASKS );
 
 		// Start them, pretty much in parallel (not really, but we have a lot so they will eventually run in parallel):
 		for ( int i = 0; i < NUMBER_OF_TASKS; i ++ ) {
@@ -105,7 +110,6 @@ public class SequenceIdGenerationTest extends BaseReactiveTest {
 		try {
 			//TODO setup a timeout
 			endGate.await();
-			executorService.awaitTermination( 10, java.util.concurrent.TimeUnit.MINUTES );
 		}
 		catch (InterruptedException e) {
 			throw new IllegalStateException("Timed out!");
@@ -155,6 +159,7 @@ public class SequenceIdGenerationTest extends BaseReactiveTest {
 		@Override
 		public void run() {
 			final long threadId = Thread.currentThread().getId();
+			System.out.println( "Job setup, running on thread " + Thread.currentThread().getName() + " thread id: " + threadId );
 			// Generate several ids
 			loop( 0, ID_GENERATED_PER_TASK
 						  , index -> identifierGenerator
@@ -171,9 +176,10 @@ public class SequenceIdGenerationTest extends BaseReactiveTest {
 		}
 
 		private synchronized void recordFinalOutput(long threadId) {
-			System.out.println( "Finished running task of threadId: " + threadId + " content: " + Arrays.toString( generatedValues ) );
+			System.out.println( "Finished running task of threadId: " + threadId + "thread name: " + Thread.currentThread().getName() + " content: " + Arrays.toString( generatedValues ) );
 			this.generatedValuesPublished = generatedValues;
 			endGate.countDown();
+			System.out.println( "Count on gate: " + endGate.getCount() );
 		}
 
 		public synchronized long[] retrieveAllGeneratedValues() {
