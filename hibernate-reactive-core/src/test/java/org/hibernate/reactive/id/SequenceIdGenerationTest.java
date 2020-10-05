@@ -36,35 +36,39 @@ public class SequenceIdGenerationTest extends BaseReactiveTest {
 
 	protected static boolean RUN_FULL_TESTS = Boolean.getBoolean( "reactive.runFullStressTests" );
 	protected static int PARALLEL_THREADS = Runtime.getRuntime().availableProcessors();
+
 	protected static int NUMBER_OF_TASKS = PARALLEL_THREADS * 3;
+
+	// Number of id generated for each task
 	protected static int INCREASES_PER_TASK = RUN_FULL_TESTS ? 100_000 : 10;
 
 	private static final String SEQUENCE_NAME = "IdGeneratorSequence";
-
 	private static final int INITIAL_VALUE = 13;
 	private static final int ALLOCATION_SIZE = 5;
 
+	private final CountDownLatch endGate = new CountDownLatch( NUMBER_OF_TASKS ); 
 
 	@Test
 	public void testThreadSafetyIdGeneration(TestContext context) {
 		test( context, getSessionFactory().withTransaction( (session, transaction) -> {
-				  IncrementJob[] runJobs = runJobs( session );
+				  IdGenerationTask[] runJobs = runJobs( session );
 				  return completedFuture( runJobs );
 			  } ).thenAccept( runJobs -> {
-				  // Verify we got unique results:
+				  // Collect all the generated ids
 				  final int[] allGeneratedValues = new int[INCREASES_PER_TASK * NUMBER_OF_TASKS];
 				  int index = 0;
-				  for ( IncrementJob job : runJobs ) {
+				  for ( IdGenerationTask job : runJobs ) {
 					  int[] generatedValues = job.retrieveAllGeneratedValues();
 					  for ( int i = 0; i < generatedValues.length; i++ ) {
 						  allGeneratedValues[index++] = generatedValues[i];
 					  }
 				  }
 
+				  // Sort them
 				  Arrays.sort( allGeneratedValues );
-
-				  // Print sorted ids
-				  Arrays.stream( allGeneratedValues ).asDoubleStream().forEach( System.out::println );
+				  System.out.println("-------- Sorted id generated:");
+				  Arrays.stream( allGeneratedValues )
+						  .forEach( System.out::println );
 
 				  // Check the expected values have been generated
 				  int expectedValue = INITIAL_VALUE;
@@ -78,11 +82,9 @@ public class SequenceIdGenerationTest extends BaseReactiveTest {
 		);
 	}
 
-	final CountDownLatch endGate = new CountDownLatch( NUMBER_OF_TASKS );
-
-	protected IncrementJob[] runJobs(final Stage.Session session) {
+	protected IdGenerationTask[] runJobs(final Stage.Session session) {
 		final EntityWithId entity = new EntityWithId();
-		final IncrementJob[] runJobs = new IncrementJob[NUMBER_OF_TASKS];
+		final IdGenerationTask[] runJobs = new IdGenerationTask[NUMBER_OF_TASKS];
 
 		System.out.println( "Starting stress tests on " + PARALLEL_THREADS + " Threads running " + NUMBER_OF_TASKS + " tasks" );
 		ReactiveConnectionSupplier supplier = session.unwrap( ReactiveConnectionSupplier.class );
@@ -90,7 +92,7 @@ public class SequenceIdGenerationTest extends BaseReactiveTest {
 
 		// Prepare all jobs (quite a lot of array allocations):
 		for ( int i = 0; i < NUMBER_OF_TASKS; i++ ) {
-			runJobs[i] = new IncrementJob( supplier, identifierGenerator, entity );
+			runJobs[i] = new IdGenerationTask( supplier, identifierGenerator, entity );
 		}
 
 		// Start them, pretty much in parallel (not really, but we have a lot so they will eventually run in parallel):
@@ -127,7 +129,11 @@ public class SequenceIdGenerationTest extends BaseReactiveTest {
 		return configuration;
 	}
 
-	class IncrementJob implements Runnable {
+	/**
+	 * When the task starts it generates several ids.
+	 * @see #INCREASES_PER_TASK
+	 */
+	class IdGenerationTask implements Runnable {
 
 		//GuardedBy synchronization on IncrementJob.this :
 		private final int[] generatedValues = new int[INCREASES_PER_TASK];
@@ -135,7 +141,7 @@ public class SequenceIdGenerationTest extends BaseReactiveTest {
 		private final ReactiveIdentifierGenerator<Long> identifierGenerator;
 		private final Object entity;
 
-		private IncrementJob(
+		private IdGenerationTask(
 				ReactiveConnectionSupplier supplier,
 				ReactiveIdentifierGenerator<Long> identifierGenerator,
 				Object entity) {
