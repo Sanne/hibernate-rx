@@ -39,14 +39,13 @@ public class SequenceIdGenerationTest extends BaseReactiveTest {
 
 	protected static int NUMBER_OF_TASKS = PARALLEL_THREADS * 3;
 
-	// Number of id generated for each task
-	protected static int INCREASES_PER_TASK = RUN_FULL_TESTS ? 100_000 : 10;
+	protected static int ID_GENERATED_PER_TASK = RUN_FULL_TESTS ? 100_000 : 10;
 
 	private static final String SEQUENCE_NAME = "IdGeneratorSequence";
 	private static final int INITIAL_VALUE = 13;
-	private static final int ALLOCATION_SIZE = 5;
+	private static final int ALLOCATION_SIZE = 10;
 
-	private final CountDownLatch endGate = new CountDownLatch( NUMBER_OF_TASKS ); 
+	private final CountDownLatch endGate = new CountDownLatch( NUMBER_OF_TASKS );
 
 	@Test
 	public void testThreadSafetyIdGeneration(TestContext context) {
@@ -55,7 +54,7 @@ public class SequenceIdGenerationTest extends BaseReactiveTest {
 				  return completedFuture( runJobs );
 			  } ).thenAccept( runJobs -> {
 				  // Collect all the generated ids
-				  final int[] allGeneratedValues = new int[INCREASES_PER_TASK * NUMBER_OF_TASKS];
+				  final int[] allGeneratedValues = new int[ID_GENERATED_PER_TASK * NUMBER_OF_TASKS];
 				  int index = 0;
 				  for ( IdGenerationTask job : runJobs ) {
 					  int[] generatedValues = job.retrieveAllGeneratedValues();
@@ -100,12 +99,16 @@ public class SequenceIdGenerationTest extends BaseReactiveTest {
 			new Thread( runJobs[i] ).start();
 		}
 
+		await();
+		return runJobs;
+	}
+
+	private void await() {
 		try {
 			endGate.await();
-			return runJobs;
 		}
 		catch (InterruptedException e) {
-			throw new RuntimeException(e);
+			throw new RuntimeException( e );
 		}
 	}
 
@@ -131,12 +134,12 @@ public class SequenceIdGenerationTest extends BaseReactiveTest {
 
 	/**
 	 * When the task starts it generates several ids.
-	 * @see #INCREASES_PER_TASK
+	 * @see #ID_GENERATED_PER_TASK
 	 */
 	class IdGenerationTask implements Runnable {
 
 		//GuardedBy synchronization on IncrementJob.this :
-		private final int[] generatedValues = new int[INCREASES_PER_TASK];
+		private final int[] generatedValues = new int[ID_GENERATED_PER_TASK];
 		private final ReactiveConnectionSupplier supplier;
 		private final ReactiveIdentifierGenerator<Long> identifierGenerator;
 		private final Object entity;
@@ -154,7 +157,7 @@ public class SequenceIdGenerationTest extends BaseReactiveTest {
 		public void run() {
 			final long threadId = Thread.currentThread().getId();
 			// Generate several ids
-			loop( 0, INCREASES_PER_TASK
+			loop( 0, ID_GENERATED_PER_TASK
 						  , index -> identifierGenerator
 								  .generate( supplier, entity )
 								  .thenAccept( id -> {
