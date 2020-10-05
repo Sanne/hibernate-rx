@@ -5,6 +5,9 @@
  */
 package org.hibernate.reactive.id.impl;
 
+import java.util.Properties;
+import java.util.concurrent.CompletionStage;
+
 import org.hibernate.boot.model.relational.QualifiedName;
 import org.hibernate.dialect.Dialect;
 import org.hibernate.engine.jdbc.env.spi.JdbcEnvironment;
@@ -15,8 +18,7 @@ import org.hibernate.reactive.session.ReactiveConnectionSupplier;
 import org.hibernate.service.ServiceRegistry;
 import org.hibernate.type.Type;
 
-import java.util.Properties;
-import java.util.concurrent.CompletionStage;
+
 
 import static org.hibernate.internal.util.config.ConfigurationHelper.getInt;
 import static org.hibernate.reactive.id.impl.IdentifierGeneration.determineSequenceName;
@@ -41,9 +43,10 @@ public class SequenceReactiveIdentifierGenerator
 	private long hiValue;
 
 	private synchronized long next() {
-		return loValue>0 && loValue<increment
+		long returned = loValue>0 && loValue<increment
 				? hiValue + loValue++
 				: -1; //flag value indicating that we need to hit db
+		return returned;
 	}
 
 	private synchronized long next(long hi) {
@@ -64,7 +67,6 @@ public class SequenceReactiveIdentifierGenerator
 				.format( qualifiedSequenceName, dialect );
 
 		increment = determineIncrementForSequenceEmulation( params );
-
 		sql = dialect.getSequenceNextValString( renderedSequenceName );
 	}
 
@@ -72,9 +74,8 @@ public class SequenceReactiveIdentifierGenerator
 	public CompletionStage<Long> generate(ReactiveConnectionSupplier session, Object entity) {
 		long local = next();
 		if ( local >= 0 ) {
-			return completedFuture(local);
+			return completedFuture( local );
 		}
-
 		return session.getReactiveConnection()
 				.selectLong( sql, NO_PARAMS )
 				.thenApply( this::next );
