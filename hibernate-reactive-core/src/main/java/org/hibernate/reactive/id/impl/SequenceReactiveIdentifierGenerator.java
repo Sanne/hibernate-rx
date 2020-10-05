@@ -19,7 +19,6 @@ import org.hibernate.service.ServiceRegistry;
 import org.hibernate.type.Type;
 
 
-
 import static org.hibernate.internal.util.config.ConfigurationHelper.getInt;
 import static org.hibernate.reactive.id.impl.IdentifierGeneration.determineSequenceName;
 import static org.hibernate.reactive.util.impl.CompletionStages.completedFuture;
@@ -73,7 +72,7 @@ public class SequenceReactiveIdentifierGenerator
 	@Override
 	public CompletionStage<Long> generate(ReactiveConnectionSupplier session, Object entity) {
 		long local = next();
-		if ( local >= 0 ) {
+		if ( local > 0 ) {
 			return completedFuture( local );
 		}
 		return session.getReactiveConnection()
