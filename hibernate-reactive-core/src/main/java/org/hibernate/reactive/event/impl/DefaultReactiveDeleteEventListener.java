@@ -337,59 +337,56 @@ public class DefaultReactiveDeleteEventListener
 		persistenceContext.setEntryStatus( entityEntry, Status.DELETED );
 		final EntityKey key = session.generateEntityKey( entityEntry.getId(), persister );
 
-		CompletionStage<?> beforeDelete = cascadeBeforeDelete( session, persister, entity, entityEntry, transientEntities );
-
-		CompletionStage<Void> nullifyAndAction = new ForeignKeys.Nullifier(
-				entity,
-				true,
-				false,
-				session,
-				persister
-		).nullifyTransientReferences( entityEntry.getDeletedState() )
-				.thenAccept( v -> {
-					new Nullability( session ).checkNullability(
-							entityEntry.getDeletedState(),
-							persister,
-							Nullability.NullabilityCheckType.DELETE
-					);
-					persistenceContext.registerNullifiableEntityKey( key );
-
-					ReactiveActionQueue actionQueue = actionQueue( session );
-
-					if ( isOrphanRemovalBeforeUpdates ) {
-						// TODO: The removeOrphan concept is a temporary "hack" for HHH-6484.  This should be removed once action/task
-						// ordering is improved.
-						actionQueue.addAction(
-								new ReactiveOrphanRemovalAction(
-										entityEntry.getId(),
-										deletedState,
-										version,
-										entity,
+		return cascadeBeforeDelete( session, persister, entity, entityEntry, transientEntities )
+				.thenCompose( beforeDelete -> new ForeignKeys.Nullifier(
+							entity,
+							true,
+							false,
+							session,
+							persister
+					).nullifyTransientReferences( entityEntry.getDeletedState() )
+							.thenAccept( v -> {
+								new Nullability( session ).checkNullability(
+										entityEntry.getDeletedState(),
 										persister,
-										isCascadeDeleteEnabled,
-										session
-								)
-						);
-					}
-					else {
-						// Ensures that containing deletions happen before sub-deletions
-						actionQueue.addAction(
-								new ReactiveEntityDeleteAction(
-										entityEntry.getId(),
-										deletedState,
-										version,
-										entity,
-										persister,
-										isCascadeDeleteEnabled,
-										session
-								)
-						);
-					}
-				} );
+										Nullability.NullabilityCheckType.DELETE
+								);
+								persistenceContext.registerNullifiableEntityKey( key );
 
-		CompletionStage<Void> afterDelete = cascadeAfterDelete( session, persister, entity, transientEntities );
+								ReactiveActionQueue actionQueue = actionQueue( session );
 
-		return beforeDelete.thenCompose( v -> nullifyAndAction ).thenCompose( v -> afterDelete );
+								if ( isOrphanRemovalBeforeUpdates ) {
+									// TODO: The removeOrphan concept is a temporary "hack" for HHH-6484.  This should be removed once action/task
+									// ordering is improved.
+									actionQueue.addAction(
+											new ReactiveOrphanRemovalAction(
+													entityEntry.getId(),
+													deletedState,
+													version,
+													entity,
+													persister,
+													isCascadeDeleteEnabled,
+													session
+											)
+									);
+								}
+								else {
+									// Ensures that containing deletions happen before sub-deletions
+									actionQueue.addAction(
+											new ReactiveEntityDeleteAction(
+													entityEntry.getId(),
+													deletedState,
+													version,
+													entity,
+													persister,
+													isCascadeDeleteEnabled,
+													session
+											)
+									);
+								}
+							} )
+		)
+		.thenCompose( v -> cascadeAfterDelete( session, persister, entity, transientEntities ) );
 	}
 
 	private ReactiveActionQueue actionQueue(EventSource session) {
