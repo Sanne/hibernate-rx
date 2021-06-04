@@ -79,6 +79,12 @@ public class CompletionStagesTest {
 	}
 
 	@Test
+	public void testLoopOnArrayIndex(TestContext context) {
+		test( context, loop( 0, entries.length, index -> completedFuture( looped.add( entries[index] ) ) )
+				.thenAccept( v -> assertThat( looped ).containsExactly( entries ) ) );
+	}
+
+	@Test
 	public void testLoopOnArray(TestContext context) {
 		test( context, loop( entries, entry -> completedFuture( looped.add( entry ) ) )
 				.thenAccept( v -> assertThat( looped ).containsExactly( entries ) ) );
@@ -88,6 +94,14 @@ public class CompletionStagesTest {
 	public void testLoopOnIterator(TestContext context) {
 		test( context, loop( iterator( entries ), entry -> completedFuture( looped.add( entry ) ) )
 				.thenAccept( v -> assertThat( looped ).containsExactly( entries ) ) );
+	}
+
+	@Test
+	public void testLoopOnIteratorWithIndex(TestContext context) {
+		test( context, loop( iterator( entries ), (entry, index) -> {
+			assertThat( entry ).isEqualTo( entries[index] );
+			return completedFuture( looped.add( entry ) );
+		} ).thenAccept( v -> assertThat( looped ).containsExactly( entries ) ) );
 	}
 
 	@Test
