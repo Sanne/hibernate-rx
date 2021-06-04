@@ -345,8 +345,7 @@ public class CompletionStages {
 	public static CompletionStage<Void> loop(int start, int end, IntPredicate filter, IntFunction<CompletionStage<?>> consumer) {
 		if ( start < end ) {
 			final ArrayLoop loop = new ArrayLoop( start, end, filter, consumer);
-			return asyncWhile( loop::next )
-					.thenCompose( CompletionStages::voidFuture );
+			return asyncWhile( loop::next );
 		}
 		return voidFuture();
 	}
