@@ -293,9 +293,19 @@ public class CompletionStages {
 		return loop( collection, CompletionStages::alwaysTrue, consumer );
 	}
 
+	/**
+	 * @deprecated always prefer the variants which use a List rather than a Collection
+	 */
+	@Deprecated
 	public static <T> CompletionStage<Void> loop(Collection<T> collection, Predicate<T> filter, Function<T, CompletionStage<?>> consumer) {
-		final List<T> list = new ArrayList<>( collection );
-		return loop( list, filter, consumer );
+		if ( collection instanceof List ) {
+			//This is true in almost all known cases, so a good optimisation in practice.
+			return loop( (List) collection, filter, consumer );
+		}
+		else {
+			final List<T> list = new ArrayList<>( collection );
+			return loop( list, filter, consumer );
+		}
 	}
 
 	public static <T> CompletionStage<Void> loop(List<T> list, Function<T, CompletionStage<?>> consumer) {
