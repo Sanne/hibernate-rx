@@ -5,7 +5,11 @@
  */
 package org.hibernate.reactive.util.impl;
 
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Iterator;
+import java.util.List;
+import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.function.Function;
@@ -13,7 +17,6 @@ import java.util.function.IntFunction;
 import java.util.function.IntPredicate;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
-import java.util.stream.Stream;
 
 import org.hibernate.internal.CoreLogging;
 import org.hibernate.internal.CoreMessageLogger;
@@ -38,6 +41,10 @@ public class CompletionStages {
 	}
 
 	private static boolean alwaysTrue(int index) {
+		return true;
+	}
+
+	private static boolean alwaysTrue(Object o) {
 		return true;
 	}
 
@@ -177,22 +184,6 @@ public class CompletionStages {
 	/**
 	 * Equivalent to:
 	 * <pre>
-	 * while( iterator.hasNext() ) {
-	 *   consumer.apply( iterator.next() );
-	 * }
-	 * </pre>
-	 */
-	public static <T> CompletionStage<Void> loop(Iterator<T> iterator, Function<T, CompletionStage<?>> consumer) {
-		return loop( iterator, CompletionStages::alwaysTrue, (value, integer) -> consumer.apply( value ) );
-	}
-
-	public static <T> CompletionStage<Void> loop(Iterator<T> iterator, Predicate<T> filter, Function<T, CompletionStage<?>> consumer) {
-		return loop( iterator, (value, integer) -> filter.test( value ), (value, integer) -> consumer.apply( value ) );
-	}
-
-	/**
-	 * Equivalent to:
-	 * <pre>
 	 * int index = 0
 	 * while( iterator.hasNext() ) {
 	 *   consumer.apply( iterator.next(), index++ );
@@ -298,21 +289,25 @@ public class CompletionStages {
 	 * }
 	 * </pre>
 	 */
-	public static <T> CompletionStage<Void> loop(Iterable<T> iterable, Function<T,CompletionStage<?>> consumer) {
-		return loop( iterable.iterator(), consumer );
+	public static <T> CompletionStage<Void> loop(Collection<T> collection, Function<T, CompletionStage<?>> consumer) {
+		return loop( collection, CompletionStages::alwaysTrue, consumer );
 	}
 
-	/**
-	 * Equivalent to:
-	 * <pre>
-	 * Iterator iterator = stream.iterator();
-	 * while( iterator.hasNext() ) {
-	 *   consumer.apply( iterator.next() );
-	 * }
-	 * </pre>
-	 */
-	public static <T> CompletionStage<Void> loop(Stream<T> stream, Function<T,CompletionStage<?>> consumer) {
-		return loop( stream.iterator(), consumer );
+	public static <T> CompletionStage<Void> loop(Collection<T> collection, Predicate<T> filter, Function<T, CompletionStage<?>> consumer) {
+		final List<T> list = new ArrayList<>( collection );
+		return loop( list, filter, consumer );
+	}
+
+	public static <T> CompletionStage<Void> loop(List<T> list, Function<T, CompletionStage<?>> consumer) {
+		return loop( 0, list.size(), index -> consumer.apply( list.get( index ) ) );
+	}
+
+	public static <T> CompletionStage<Void> loop(List<T> list, Predicate<T> filter, Function<T,CompletionStage<?>> consumer) {
+		return loop( 0, list.size(), index -> filter.test( list.get( index ) ), index -> consumer.apply( list.get( index ) ) );
+	}
+
+	public static <T> CompletionStage<Void> loop(Queue<T> list, Function<T, CompletionStage<?>> consumer) {
+		return loop( 0, list.size(), index -> consumer.apply( list.poll() ) );
 	}
 
 	/**

@@ -566,7 +566,7 @@ public final class Cascade<C> {
 
 		ReactiveSession session = (ReactiveSession) eventSource;
 		stage = stage.thenCompose( v -> loop(
-				orphans.iterator(),
+				orphans,
 				Objects::nonNull,
 				orphan -> {
 					LOG.tracev( "Deleting orphaned entity instance: {0}", entityName );

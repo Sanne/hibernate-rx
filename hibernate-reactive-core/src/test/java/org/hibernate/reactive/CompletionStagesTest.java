@@ -19,7 +19,6 @@ import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
 
 import static java.util.Arrays.asList;
-import static java.util.Arrays.stream;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hibernate.reactive.util.impl.CompletionStages.completedFuture;
 import static org.hibernate.reactive.util.impl.CompletionStages.loop;
@@ -91,12 +90,6 @@ public class CompletionStagesTest {
 	}
 
 	@Test
-	public void testLoopOnIterator(TestContext context) {
-		test( context, loop( iterator( entries ), entry -> completedFuture( looped.add( entry ) ) )
-				.thenAccept( v -> assertThat( looped ).containsExactly( entries ) ) );
-	}
-
-	@Test
 	public void testLoopOnIteratorWithIndex(TestContext context) {
 		test( context, loop( iterator( entries ), (entry, index) -> {
 			assertThat( entry ).isEqualTo( entries[index] );
@@ -107,12 +100,6 @@ public class CompletionStagesTest {
 	@Test
 	public void testLoopOnIterable(TestContext context) {
 		test( context, loop( asList( entries ), entry -> completedFuture( looped.add( entry ) ) )
-				.thenAccept( v -> assertThat( looped ).containsExactly( entries ) ) );
-	}
-
-	@Test
-	public void testLoopOnStream(TestContext context) {
-		test( context, loop( stream( entries ), entry -> completedFuture( looped.add( entry ) ) )
 				.thenAccept( v -> assertThat( looped ).containsExactly( entries ) ) );
 	}
 
