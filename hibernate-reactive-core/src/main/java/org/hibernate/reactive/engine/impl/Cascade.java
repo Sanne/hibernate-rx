@@ -556,9 +556,10 @@ public final class Cascade<C> {
 		final Collection<?> orphans;
 		if ( pc.wasInitialized() ) {
 			final CollectionEntry ce = eventSource.getPersistenceContextInternal().getCollectionEntry( pc );
-			orphans = ce == null
-					? Collections.EMPTY_LIST
-					: ce.getOrphans( entityName, pc );
+			if ( ce == null ) {
+				return;
+			}
+			orphans = ce.getOrphans( entityName, pc );
 		}
 		else {
 			orphans = pc.getQueuedOrphans( entityName );
