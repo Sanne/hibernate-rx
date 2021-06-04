@@ -5,21 +5,22 @@
  */
 package org.hibernate.reactive.util.impl;
 
-import com.ibm.asyncutil.iteration.AsyncIterator;
-import com.ibm.asyncutil.iteration.AsyncTrampoline;
-import org.hibernate.internal.CoreLogging;
-import org.hibernate.internal.CoreMessageLogger;
-
-import java.util.Arrays;
 import java.util.Iterator;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.BiFunction;
 import java.util.function.Function;
+import java.util.function.IntFunction;
+import java.util.function.IntPredicate;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
-import java.util.stream.IntStream;
 import java.util.stream.Stream;
+
+import org.hibernate.internal.CoreLogging;
+import org.hibernate.internal.CoreMessageLogger;
+
+import com.ibm.asyncutil.iteration.AsyncIterator;
+
+import static com.ibm.asyncutil.iteration.AsyncTrampoline.asyncWhile;
 
 public class CompletionStages {
 
@@ -31,6 +32,18 @@ public class CompletionStages {
 	private static final CompletionStage<Integer> ZERO = completedFuture( 0 );
 	private static final CompletionStage<Boolean> TRUE = completedFuture( true );
 	private static final CompletionStage<Boolean> FALSE = completedFuture( false );
+
+	private static <T> boolean alwaysTrue(T o, int index) {
+		return true;
+	}
+
+	private static boolean alwaysTrue(int index) {
+		return true;
+	}
+
+	private static CompletionStage<Boolean> alwaysContinue(Object ignored) {
+		return TRUE;
+	}
 
 	public static CompletionStage<Void> voidFuture(Object ignore) {
 		return voidFuture();
@@ -101,7 +114,7 @@ public class CompletionStages {
 	 * }
 	 * </pre>
 	 */
-	public static <T> CompletionStage<Integer> total(int start, int end, Function<Integer,CompletionStage<Integer>> consumer) {
+	public static CompletionStage<Integer> total(int start, int end, IntFunction<CompletionStage<Integer>> consumer) {
 		return AsyncIterator.range( start, end )
 				.thenCompose( i -> consumer.apply( i.intValue() ) )
 				.fold( 0, Integer::sum );
@@ -131,7 +144,7 @@ public class CompletionStages {
 	 * }
 	 * </pre>
 	 */
-	public static <T> CompletionStage<Integer> total(T[] array, Function<T,CompletionStage<Integer>> consumer) {
+	public static <T> CompletionStage<Integer> total(T[] array, Function<T, CompletionStage<Integer>> consumer) {
 		return total( 0, array.length, index -> consumer.apply( array[index] ) );
 	}
 
@@ -143,8 +156,22 @@ public class CompletionStages {
 	 * }
 	 * </pre>
 	 */
-	public static <T> CompletionStage<Void> loop(T[] array, Function<T,CompletionStage<?>> consumer) {
-		return loop( Arrays.stream(array), consumer );
+	public static <T> CompletionStage<Void> loop(T[] array, Function<T, CompletionStage<?>> consumer) {
+		return loop( 0, array.length, index -> consumer.apply( array[index] ) );
+	}
+
+	/**
+	 * Equivalent to:
+	 * <pre>
+	 * for ( int i = start; i < end; i++ ) {
+	 *   if ( filter.test(i) )  {
+	 *   	consumer.apply( i );
+	 *   }
+	 * }
+	 * </pre>
+	 */
+	public static <T> CompletionStage<Void> loop(T[] array, IntPredicate filter, IntFunction<CompletionStage<?>> consumer) {
+		return loop( 0, array.length, filter, consumer );
 	}
 
 	/**
@@ -155,24 +182,111 @@ public class CompletionStages {
 	 * }
 	 * </pre>
 	 */
-	public static <T> CompletionStage<Void> loop(Iterator<T> iterator, BiFunction<T,Integer,CompletionStage<?>> consumer) {
-		if ( iterator.hasNext() ) {
-			AtomicInteger index = new AtomicInteger( 0 );
-			return AsyncTrampoline.asyncWhile( () -> consumer.apply( iterator.next(), index.getAndIncrement() )
-					.thenApply( r -> iterator.hasNext() ));
-		}
-		else {
-			return voidFuture();
-		}
+	public static <T> CompletionStage<Void> loop(Iterator<T> iterator, Function<T, CompletionStage<?>> consumer) {
+		return loop( iterator, CompletionStages::alwaysTrue, (value, integer) -> consumer.apply( value ) );
 	}
 
-	public static <T> CompletionStage<Void> loop(Iterator<T> iterator, Function<T,CompletionStage<?>> consumer) {
+	public static <T> CompletionStage<Void> loop(Iterator<T> iterator, Predicate<T> filter, Function<T, CompletionStage<?>> consumer) {
+		return loop( iterator, (value, integer) -> filter.test( value ), (value, integer) -> consumer.apply( value ) );
+	}
+
+	/**
+	 * Equivalent to:
+	 * <pre>
+	 * int index = 0
+	 * while( iterator.hasNext() ) {
+	 *   consumer.apply( iterator.next(), index++ );
+	 * }
+	 * </pre>
+	 */
+	public static <T> CompletionStage<Void> loop(Iterator<T> iterator, IntBiFunction<T, CompletionStage<?>> consumer) {
+		return loop( iterator, CompletionStages::alwaysTrue, consumer );
+	}
+	/**
+	 * Equivalent to:
+	 * <pre>
+	 * int index = -1
+	 * while( iterator.hasNext() ) {
+	 *   index++
+	 *   T next = iterator.next();
+	 *   if (filter.test( next, index ) {
+	 *     consumer.apply( next, index );
+	 *   }
+	 * }
+	 * </pre>
+	 */
+	public static <T> CompletionStage<Void> loop(Iterator<T> iterator, IntBiPredicate<T> filter, IntBiFunction<T, CompletionStage<?>> consumer) {
 		if ( iterator.hasNext() ) {
-			return AsyncTrampoline.asyncWhile( () -> consumer.apply( iterator.next() )
-					.thenApply( r -> iterator.hasNext() ));
+			final IndexedIteratorLoop<T> loop = new IndexedIteratorLoop<>( iterator, filter, consumer );
+			return asyncWhile( loop::next )
+					.thenCompose( CompletionStages::voidFuture );
 		}
-		else {
-			return voidFuture();
+		return voidFuture();
+	}
+
+	/**
+	 * It represents a loop on an iterator that requires
+	 * an index of the current element.
+	 * <p>
+	 * Equivalent to:
+	 * <pre>
+	 *   int index = -1
+	 * 	 while( iterator.hasNext() ) {
+	 * 	   index++
+	 * 	   T next = iterator.next();
+	 * 	   if (filter.test( next, index ) {
+	 * 	     consumer.apply( next, index );
+	 * 	   }
+	 * 	 }
+	 * </pre>
+	 * </p>
+	 * <p>
+	 * This class keeps track of the state of the loop, allowing us to
+	 * use an {@code AsyncTrampoline#asyncWhile} via method reference.
+	 * </p>
+	 * @see com.ibm.asyncutil.iteration.AsyncTrampoline
+	 * @param <T> the class of the elements in the iterator
+	 */
+	private static class IndexedIteratorLoop<T> {
+		private final IntBiPredicate<T> filter;
+		private final IntBiFunction<T, CompletionStage<?>> consumer;
+		private final Iterator<T> iterator;
+		private boolean hasNext;
+		private int currentIndex = -1;
+		private T currentEntry;
+
+		public IndexedIteratorLoop(Iterator<T> iterator, IntBiPredicate<T> filter, IntBiFunction<T, CompletionStage<?>> consumer) {
+			this.iterator = iterator;
+			this.filter = filter;
+			this.consumer = consumer;
+		}
+
+		public CompletionStage<Boolean> next() {
+			filterValues();
+			if ( hasNext ) {
+				final T entry = currentEntry;
+				final int index = currentIndex;
+				return consumer.apply( entry, index )
+						.thenCompose( CompletionStages::alwaysContinue );
+			}
+			return FALSE;
+		}
+
+		// Skip all the indexes not matching the filter
+		private void filterValues() {
+			int index = currentIndex;
+			T next = currentEntry;
+			this.hasNext = false;
+			while ( iterator.hasNext() ) {
+				next = iterator.next();
+				index++;
+				if ( filter.test( next, index ) ) {
+					this.hasNext = true;
+					break;
+				}
+			}
+			this.currentEntry = next;
+			this.currentIndex = index;
 		}
 	}
 
@@ -192,7 +306,7 @@ public class CompletionStages {
 	 * Equivalent to:
 	 * <pre>
 	 * Iterator iterator = stream.iterator();
-	 * while( iterator.hasNext()) {
+	 * while( iterator.hasNext() ) {
 	 *   consumer.apply( iterator.next() );
 	 * }
 	 * </pre>
@@ -204,26 +318,86 @@ public class CompletionStages {
 	/**
 	 * Equivalent to:
 	 * <pre>
-	 * Iterator iterator = inStream.iterator();
-	 * while( iterator.hasNext()) {
-	 *   consumer.apply( iterator.next() );
+	 * for ( int i = start; i < end; i++ ) {
+	 *   consumer.apply( i );
 	 * }
 	 * </pre>
 	 */
-	public static CompletionStage<Void> loop(IntStream stream, Function<Integer,CompletionStage<?>> consumer) {
-		return loop( stream.iterator(), consumer );
+	public static CompletionStage<Void> loop(int start, int end, IntFunction<CompletionStage<?>> consumer) {
+		return loop( start, end, CompletionStages::alwaysTrue, consumer );
 	}
 
 	/**
 	 * Equivalent to:
 	 * <pre>
 	 * for ( int i = start; i < end; i++ ) {
-	 *   consumer.apply( i );
+	 *   if ( filter.test(i) ) {
+	 *   	consumer.apply( i );
+	 *   }
 	 * }
 	 * </pre>
 	 */
-	public static CompletionStage<Void> loop(int start, int end, Function<Integer,CompletionStage<?>> consumer) {
-		return loop( IntStream.range(start, end), consumer );
+	public static CompletionStage<Void> loop(int start, int end, IntPredicate filter, IntFunction<CompletionStage<?>> consumer) {
+		if ( start < end ) {
+			final ArrayLoop loop = new ArrayLoop( start, end, filter, consumer);
+			return asyncWhile( loop::next )
+					.thenCompose( CompletionStages::voidFuture );
+		}
+		return voidFuture();
+	}
+
+	/**
+	 * The status of a loop over an array.
+	 * <p>
+	 * Equivalent to:
+	 * <pre>
+	 * for ( int i = start; i < end; i++ ) {
+	 *   if ( filter.test( i ) ) {
+	 *   	consumer.apply( i );
+	 *   }
+	 * }
+	 * </pre>
+	 * </p>
+	 * <p>
+	 * This class keeps track of the state of the loop, allowing us to
+	 * use an {@code AsyncTrampoline#asyncWhile} via method reference.
+	 * </p>
+	 */
+	private static class ArrayLoop {
+
+		private final IntPredicate filter;
+		private final IntFunction<CompletionStage<?>> consumer;
+		private final int end;
+		private int current;
+
+		public ArrayLoop(int start, int end, IntPredicate filter, IntFunction<CompletionStage<?>> consumer) {
+			this.end = end;
+			this.filter = filter;
+			this.consumer = consumer;
+			this.current = start;
+		}
+
+		public CompletionStage<Boolean> next() {
+			current = next( current );
+			if ( current < end ) {
+				final int index = current++;
+				return consumer.apply( index )
+						.thenCompose( CompletionStages::alwaysContinue );
+			}
+			return FALSE;
+		}
+
+		/**
+		 * @param start the first index to test
+		 * @return the next valid index
+		 */
+		private int next(int start) {
+			int index = start;
+			while ( index < end && !filter.test( index ) ) {
+				index++;
+			}
+			return index;
+		}
 	}
 
 	public static CompletionStage<Void> applyToAll(Function<Object, CompletionStage<?>> op, Object[] entity) {
